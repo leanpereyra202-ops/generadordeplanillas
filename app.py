@@ -1,50 +1,29 @@
 import streamlit as st
-import os
 from fpdf import FPDF
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
-# --- CONFIGURACIÓN DE SEGURIDAD ---
-CONTRASEÑA_CORRECTA = "1626"
-
-def check_password():
-    if "password_correcta" not in st.session_state:
-        st.session_state["password_correcta"] = False
-
-    if not st.session_state["password_correcta"]:
-        st.title("🔒 Acceso Restringido")
-        pwd_ingresada = st.text_input("Ingrese la contraseña:", type="password")
-        if st.button("Ingresar"):
-            if pwd_ingresada == CONTRASEÑA_CORRECTA:
-                st.session_state["password_correcta"] = True
-                st.rerun()
-            else:
-                st.error("Contraseña incorrecta")
-        return False
-    return True
-
 def formatear_numero(valor):
-    """Convierte números ingresados a formato con separador de miles (puntos)."""
     try:
-        # Quitamos puntos o espacios por si el usuario ya los puso
         num_limpio = str(valor).replace(".", "").replace(",", "").strip()
         if not num_limpio:
             return ""
-        # Generamos formato de miles y reemplazamos la coma por punto
         return f"{int(num_limpio):,}".replace(",", ".")
     except ValueError:
-        return valor # Si ingresan texto no numérico, lo devuelve sin romper el programa
+        return valor 
 
-# --- LÓGICA PARA GENERAR EL PDF ---
-def generar_pdf(operacion, nombre, dni, domicilio, tel, cobrador, total_cuotas, monto, fecha_inicio_date, frecuencia):
+def generar_pdf(operacion, nombre, dni, domicilio, tel, cobrador, total_cuotas, monto, fecha_inicio_date, frecuencia, observaciones_texto):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.add_page()
-    pdf.set_font("Arial", size=10)
     
-    # Aplicar el formato de miles al DNI y Monto
+    # Hacer las líneas más gruesas (por defecto es 0.2)
+    pdf.set_line_width(0.4)
+    
+    # Fuente general más grande (11 en lugar de 10)
+    pdf.set_font("Arial", size=11)
+    
     dni_formateado = formatear_numero(dni)
     monto_formateado = formatear_numero(monto)
-    
     fecha_emision = datetime.now().strftime("%d/%m/%Y")
     
     # --- ENCABEZADO ---
@@ -53,36 +32,39 @@ def generar_pdf(operacion, nombre, dni, domicilio, tel, cobrador, total_cuotas, 
     pdf.cell(0, 6, f"Fecha de emision: {fecha_emision}", border=0, align="R", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(5)
     
-    pdf.set_x(20)
-    pdf.cell(40, 6, "operacion:", border=0)
-    pdf.cell(60, 6, str(operacion), border=0)
-    pdf.cell(35, 6, "cobrador:", border=0)
-    pdf.cell(35, 6, cobrador, border=0, new_x="LMARGIN", new_y="NEXT")
+    # Filas más separadas (alto de celda 7 en lugar de 6)
+    alto_linea = 7
     
     pdf.set_x(20)
-    pdf.cell(40, 6, "Apellido y nombre:", border=0)
-    pdf.cell(60, 6, nombre, border=0)
-    pdf.cell(35, 6, "", border=0, new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(42, alto_linea, "operacion:", border=0)
+    pdf.cell(65, alto_linea, str(operacion), border=0)
+    pdf.cell(38, alto_linea, "cobrador:", border=0)
+    pdf.cell(38, alto_linea, cobrador, border=0, new_x="LMARGIN", new_y="NEXT")
     
     pdf.set_x(20)
-    pdf.cell(40, 6, "DNI:", border=0)
-    pdf.cell(60, 6, dni_formateado, border=0)
-    pdf.cell(35, 6, "plan de pago:", border=0)
+    pdf.cell(42, alto_linea, "Apellido y nombre:", border=0)
+    pdf.cell(65, alto_linea, nombre, border=0)
+    pdf.cell(38, alto_linea, "", border=0, new_x="LMARGIN", new_y="NEXT")
+    
+    pdf.set_x(20)
+    pdf.cell(42, alto_linea, "DNI:", border=0)
+    pdf.cell(65, alto_linea, dni_formateado, border=0)
+    pdf.cell(38, alto_linea, "plan de pago:", border=0)
     
     texto_plan = f"{total_cuotas} cuotas de $ {monto_formateado}" if total_cuotas > 0 else ""
-    pdf.cell(35, 6, texto_plan, border=0, new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(38, alto_linea, texto_plan, border=0, new_x="LMARGIN", new_y="NEXT")
     
     pdf.set_x(20)
-    pdf.cell(40, 6, "Domicilio:", border=0)
-    pdf.cell(60, 6, domicilio, border=0)
-    pdf.cell(35, 6, "Frecuencia de pago:", border=0)
-    pdf.cell(35, 6, frecuencia.capitalize(), border=0, new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(42, alto_linea, "Domicilio:", border=0)
+    pdf.cell(65, alto_linea, domicilio, border=0)
+    pdf.cell(38, alto_linea, "Frecuencia de pago:", border=0)
+    pdf.cell(38, alto_linea, frecuencia.capitalize(), border=0, new_x="LMARGIN", new_y="NEXT")
     
     pdf.set_x(20)
-    pdf.cell(40, 6, "Tel.:", border=0)
-    pdf.cell(60, 6, tel, border=0, new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(42, alto_linea, "Tel.:", border=0)
+    pdf.cell(65, alto_linea, tel, border=0, new_x="LMARGIN", new_y="NEXT")
     
-    pdf.ln(15)
+    pdf.ln(18)
     
     # --- CUOTAS ---
     fecha_ideal = fecha_inicio_date
@@ -95,8 +77,9 @@ def generar_pdf(operacion, nombre, dni, domicilio, tel, cobrador, total_cuotas, 
         else:
             fecha_ideal = (fecha_ideal + relativedelta(months=1)).replace(day=5)
 
-    ancho_caja, alto_caja = 50, 20
-    espacio_x, espacio_y = 5, 5
+    # Medidas de las cajas más grandes (en milímetros)
+    ancho_caja, alto_caja = 55, 25 
+    espacio_x, espacio_y = 6, 6
     columnas = 3
     x_inicial, y_inicial = 20, pdf.get_y()
     
@@ -112,19 +95,16 @@ def generar_pdf(operacion, nombre, dni, domicilio, tel, cobrador, total_cuotas, 
         y = y_inicial + (alto_caja + espacio_y) * fila_actual
         
         pdf.rect(x, y, ancho_caja, alto_caja)
-        pdf.line(x + 15, y, x + 15, y + alto_caja)
+        pdf.line(x + 18, y, x + 18, y + alto_caja)
         
-        # Fecha arriba a la izquierda
-        pdf.set_xy(x + 1, y + 1)
-        pdf.set_font("Arial", size=9)
-        pdf.cell(14, 5, fecha_imprimir.strftime("%d/%m"), border=0, align='L')
+        pdf.set_xy(x + 1, y + 2)
+        pdf.set_font("Arial", size=10)
+        pdf.cell(16, 5, fecha_imprimir.strftime("%d/%m"), border=0, align='L')
         
-        # Número de cuota gigante y centrado (en un espacio de 15mm)
-        pdf.set_xy(x, y + alto_caja - 9)
-        pdf.set_font("Arial", 'B', size=16)
-        pdf.cell(15, 7, str(i + 1), border=0, align='C')
+        pdf.set_xy(x, y + alto_caja - 10)
+        pdf.set_font("Arial", 'B', size=18)
+        pdf.cell(18, 7, str(i + 1), border=0, align='C')
         
-        # Siguiente Fecha
         if frecuencia == 'diario':
             fecha_ideal += timedelta(days=1)
             if fecha_ideal.weekday() == 6:
@@ -142,55 +122,64 @@ def generar_pdf(operacion, nombre, dni, domicilio, tel, cobrador, total_cuotas, 
     # --- OBSERVACIONES ---
     y_final_cajas = y_inicial + (alto_caja + espacio_y) * (max(0, total_cuotas - 1) // columnas + 1)
     pdf.set_y(y_final_cajas + 20)
-    pdf.set_font("Arial", size=10)
+    pdf.set_font("Arial", size=11)
     pdf.set_x(20)
-    pdf.cell(0, 8, "observaciones: " + "." * 110, border=0, new_x="LMARGIN", new_y="NEXT")
+    
+    if observaciones_texto.strip():
+        pdf.multi_cell(0, 7, f"observaciones: {observaciones_texto.strip()}", border=0)
+    else:
+        pdf.cell(0, 7, "observaciones: ", border=0, new_x="LMARGIN", new_y="NEXT")
+    
+    pdf.ln(5)
     pdf.set_x(20)
-    pdf.cell(0, 8, "." * 136, border=0, new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, "." * 115, border=0, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_x(20)
+    pdf.cell(0, 8, "." * 115, border=0, new_x="LMARGIN", new_y="NEXT")
     
     return bytes(pdf.output())
 
 # --- INTERFAZ WEB PRINCIPAL ---
-if check_password():
-    st.title("📝 Generador de Planillas de Pago")
-    st.write("Completa los datos del cliente para generar la planilla en PDF.")
+st.title("📝 Generador de Planillas de Pago")
+st.write("Completa los datos del cliente para generar la planilla en PDF.")
+
+with st.form("formulario_planilla"):
+    col1, col2 = st.columns(2)
     
-    with st.form("formulario_planilla"):
-        col1, col2 = st.columns(2)
+    with col1:
+        operacion = st.text_input("Nro. de Operación (Ej: 22001)")
+        nombre = st.text_input("Apellido y Nombre")
+        dni = st.text_input("DNI (Solo números)")
+        domicilio = st.text_input("Domicilio")
+        tel = st.text_input("Teléfono")
+        cobrador = st.text_input("Cobrador")
         
-        with col1:
-            operacion = st.text_input("Nro. de Operación (Ej: 22001)")
-            nombre = st.text_input("Apellido y Nombre")
-            dni = st.text_input("DNI (Solo números)")
-            domicilio = st.text_input("Domicilio")
-            tel = st.text_input("Teléfono")
-            cobrador = st.text_input("Cobrador")
-            
-        with col2:
-            monto = st.text_input("Monto de la cuota (Solo números)")
-            total_cuotas = st.number_input("Cantidad de cuotas", min_value=1, max_value=60, value=5)
-            frecuencia = st.selectbox("Frecuencia de pago", ['diario', 'semanal', 'quincenal', 'mensual'])
-            fecha_inicio = st.date_input("Fecha de primera cuota", format="DD/MM/YYYY")
-            
-        submit_btn = st.form_submit_button("Generar Planilla PDF")
+    with col2:
+        monto = st.text_input("Monto de la cuota (Solo números)")
+        total_cuotas = st.number_input("Cantidad de cuotas", min_value=1, max_value=60, value=5)
+        frecuencia = st.selectbox("Frecuencia de pago", ['diario', 'semanal', 'quincenal', 'mensual'])
+        fecha_inicio = st.date_input("Fecha de primera cuota", format="DD/MM/YYYY")
         
-    if submit_btn:
-        if not operacion or not nombre:
-            st.warning("Por favor, ingresa al menos el Número de Operación y el Nombre.")
-        else:
-            pdf_bytes = generar_pdf(
-                operacion, nombre, dni, domicilio, tel, cobrador, 
-                total_cuotas, monto, fecha_inicio, frecuencia
-            )
-            
-            nombre_limpio = "".join(nombre.split()).title()
-            nombre_archivo = f"{nombre_limpio}_{operacion}.pdf"
-            
-            st.success(f"¡Planilla generada con éxito para {nombre}!")
-            
-            st.download_button(
-                label="📥 Clic aquí para Descargar tu PDF",
-                data=pdf_bytes,
-                file_name=nombre_archivo,
-                mime="application/pdf"
-            )
+    observaciones_input = st.text_area("Observaciones (Opcional)", help="Este texto aparecerá impreso. Debajo se dejarán líneas punteadas vacías.")
+        
+    submit_btn = st.form_submit_button("Generar Planilla PDF")
+    
+if submit_btn:
+    if not operacion or not nombre:
+        st.warning("Por favor, ingresa al menos el Número de Operación y el Nombre.")
+    else:
+        pdf_bytes = generar_pdf(
+            operacion, nombre, dni, domicilio, tel, cobrador, 
+            total_cuotas, monto, fecha_inicio, frecuencia, observaciones_input
+        )
+        
+        nombre_limpio = "".join(nombre.split()).title()
+        nombre_archivo = f"{nombre_limpio}_{operacion}.pdf"
+        
+        st.success(f"¡Planilla generada con éxito para {nombre}!")
+        
+        st.download_button(
+            label="📥 Clic aquí para Descargar tu PDF",
+            data=pdf_bytes,
+            file_name=nombre_archivo,
+            mime="application/pdf"
+        )
