@@ -16,55 +16,73 @@ def generar_pdf(operacion, nombre, dni, domicilio, tel, cobrador, total_cuotas, 
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.add_page()
     
-    # Hacer las líneas más gruesas (por defecto es 0.2)
-    pdf.set_line_width(0.4)
-    
-    # Fuente general más grande (11 en lugar de 10)
-    pdf.set_font("Arial", size=11)
+    # Grosor de las líneas y fuente general
+    pdf.set_line_width(0.3)
+    pdf.set_font("Arial", size=10)
     
     dni_formateado = formatear_numero(dni)
     monto_formateado = formatear_numero(monto)
     fecha_emision = datetime.now().strftime("%d/%m/%Y")
     
-    # --- ENCABEZADO ---
-    pdf.set_y(15)
-    pdf.set_x(20)
+    # --- MÁRGENES Y ENCABEZADO ---
+    margen_izq = 25
+    pdf.set_y(20)
+    pdf.set_x(margen_izq)
+    
     pdf.cell(0, 6, f"Fecha de emision: {fecha_emision}", border=0, align="R", new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(5)
+    pdf.ln(3)
     
-    # Filas más separadas (alto de celda 7 en lugar de 6)
-    alto_linea = 7
+    # Lógica de columnas con coordenadas fijas para evitar desbordes
+    y_start = pdf.get_y()
+    alto_linea = 6
+    col_der_x = margen_izq + 95 # Columna derecha desplazada al centro
     
-    pdf.set_x(20)
-    pdf.cell(42, alto_linea, "operacion:", border=0)
-    pdf.cell(65, alto_linea, str(operacion), border=0)
-    pdf.cell(38, alto_linea, "cobrador:", border=0)
-    pdf.cell(38, alto_linea, cobrador, border=0, new_x="LMARGIN", new_y="NEXT")
+    # Fila 1
+    pdf.set_xy(margen_izq, y_start)
+    pdf.cell(38, alto_linea, "operacion:", border=0)
+    pdf.cell(57, alto_linea, str(operacion), border=0)
     
-    pdf.set_x(20)
-    pdf.cell(42, alto_linea, "Apellido y nombre:", border=0)
-    pdf.cell(65, alto_linea, nombre, border=0)
-    pdf.cell(38, alto_linea, "", border=0, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_xy(col_der_x, y_start)
+    pdf.cell(60, alto_linea, "cobrador:", border=0)
     
-    pdf.set_x(20)
-    pdf.cell(42, alto_linea, "DNI:", border=0)
-    pdf.cell(65, alto_linea, dni_formateado, border=0)
-    pdf.cell(38, alto_linea, "plan de pago:", border=0)
+    # Fila 2
+    pdf.set_xy(margen_izq, y_start + alto_linea)
+    pdf.cell(38, alto_linea, "Apellido y nombre:", border=0)
+    pdf.cell(57, alto_linea, nombre, border=0)
+    
+    pdf.set_xy(col_der_x, y_start + alto_linea)
+    pdf.cell(60, alto_linea, cobrador, border=0)
+    
+    # Fila 3
+    pdf.set_xy(margen_izq, y_start + alto_linea*2)
+    pdf.cell(38, alto_linea, "DNI:", border=0)
+    pdf.cell(57, alto_linea, dni_formateado, border=0)
+    
+    pdf.set_xy(col_der_x, y_start + alto_linea*2)
+    pdf.cell(60, alto_linea, "plan de pago:", border=0)
+    
+    # Fila 4
+    pdf.set_xy(margen_izq, y_start + alto_linea*3)
+    pdf.cell(38, alto_linea, "Domicilio:", border=0)
+    pdf.cell(57, alto_linea, domicilio, border=0)
     
     texto_plan = f"{total_cuotas} cuotas de $ {monto_formateado}" if total_cuotas > 0 else ""
-    pdf.cell(38, alto_linea, texto_plan, border=0, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_xy(col_der_x, y_start + alto_linea*3)
+    pdf.cell(60, alto_linea, texto_plan, border=0)
     
-    pdf.set_x(20)
-    pdf.cell(42, alto_linea, "Domicilio:", border=0)
-    pdf.cell(65, alto_linea, domicilio, border=0)
-    pdf.cell(38, alto_linea, "Frecuencia de pago:", border=0)
-    pdf.cell(38, alto_linea, frecuencia.capitalize(), border=0, new_x="LMARGIN", new_y="NEXT")
+    # Fila 5
+    pdf.set_xy(margen_izq, y_start + alto_linea*4)
+    pdf.cell(38, alto_linea, "Tel.:", border=0)
+    pdf.cell(57, alto_linea, tel, border=0)
     
-    pdf.set_x(20)
-    pdf.cell(42, alto_linea, "Tel.:", border=0)
-    pdf.cell(65, alto_linea, tel, border=0, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_xy(col_der_x, y_start + alto_linea*4)
+    pdf.cell(60, alto_linea, "Frecuencia de pago:", border=0)
     
-    pdf.ln(18)
+    # Fila 6 (Solo frecuencia)
+    pdf.set_xy(col_der_x, y_start + alto_linea*5)
+    pdf.cell(60, alto_linea, frecuencia.capitalize(), border=0)
+    
+    pdf.set_y(y_start + alto_linea*6 + 8)
     
     # --- CUOTAS ---
     fecha_ideal = fecha_inicio_date
@@ -77,11 +95,12 @@ def generar_pdf(operacion, nombre, dni, domicilio, tel, cobrador, total_cuotas, 
         else:
             fecha_ideal = (fecha_ideal + relativedelta(months=1)).replace(day=5)
 
-    # Medidas de las cajas más grandes (en milímetros)
-    ancho_caja, alto_caja = 55, 25 
-    espacio_x, espacio_y = 6, 6
+    # Medidas exactas enviadas (en milímetros)
+    ancho_caja, alto_caja = 52, 18 
+    espacio_x, espacio_y = 3, 3
+    subcaja_ancho = 10
     columnas = 3
-    x_inicial, y_inicial = 20, pdf.get_y()
+    x_inicial, y_inicial = margen_izq, pdf.get_y()
     
     for i in range(total_cuotas):
         fecha_imprimir = fecha_ideal
@@ -94,16 +113,20 @@ def generar_pdf(operacion, nombre, dni, domicilio, tel, cobrador, total_cuotas, 
         x = x_inicial + (ancho_caja + espacio_x) * columna_actual
         y = y_inicial + (alto_caja + espacio_y) * fila_actual
         
+        # Recuadro principal
         pdf.rect(x, y, ancho_caja, alto_caja)
-        pdf.line(x + 18, y, x + 18, y + alto_caja)
+        # Línea divisoria de la subcaja a 1cm (10mm)
+        pdf.line(x + subcaja_ancho, y, x + subcaja_ancho, y + alto_caja)
         
-        pdf.set_xy(x + 1, y + 2)
-        pdf.set_font("Arial", size=10)
-        pdf.cell(16, 5, fecha_imprimir.strftime("%d/%m"), border=0, align='L')
+        # Fecha de vencimiento
+        pdf.set_xy(x, y + 1)
+        pdf.set_font("Arial", size=8)
+        pdf.cell(subcaja_ancho, 4, fecha_imprimir.strftime("%d/%m"), border=0, align='C')
         
-        pdf.set_xy(x, y + alto_caja - 10)
-        pdf.set_font("Arial", 'B', size=18)
-        pdf.cell(18, 7, str(i + 1), border=0, align='C')
+        # Número de cuota gigante y centrado
+        pdf.set_xy(x, y + alto_caja - 8)
+        pdf.set_font("Arial", 'B', size=14)
+        pdf.cell(subcaja_ancho, 6, str(i + 1), border=0, align='C')
         
         if frecuencia == 'diario':
             fecha_ideal += timedelta(days=1)
@@ -121,20 +144,20 @@ def generar_pdf(operacion, nombre, dni, domicilio, tel, cobrador, total_cuotas, 
             
     # --- OBSERVACIONES ---
     y_final_cajas = y_inicial + (alto_caja + espacio_y) * (max(0, total_cuotas - 1) // columnas + 1)
-    pdf.set_y(y_final_cajas + 20)
-    pdf.set_font("Arial", size=11)
-    pdf.set_x(20)
+    pdf.set_y(y_final_cajas + 15)
+    pdf.set_font("Arial", size=10)
+    pdf.set_x(margen_izq)
     
     if observaciones_texto.strip():
-        pdf.multi_cell(0, 7, f"observaciones: {observaciones_texto.strip()}", border=0)
+        pdf.multi_cell(0, 6, f"observaciones: {observaciones_texto.strip()}", border=0)
     else:
-        pdf.cell(0, 7, "observaciones: ", border=0, new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 6, "observaciones: ", border=0, new_x="LMARGIN", new_y="NEXT")
     
-    pdf.ln(5)
-    pdf.set_x(20)
-    pdf.cell(0, 8, "." * 115, border=0, new_x="LMARGIN", new_y="NEXT")
-    pdf.set_x(20)
-    pdf.cell(0, 8, "." * 115, border=0, new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(4)
+    pdf.set_x(margen_izq)
+    pdf.cell(0, 7, "." * 115, border=0, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_x(margen_izq)
+    pdf.cell(0, 7, "." * 115, border=0, new_x="LMARGIN", new_y="NEXT")
     
     return bytes(pdf.output())
 
